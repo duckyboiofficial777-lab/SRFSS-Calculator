@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SRFSS Dual-Mode Calculator</title>
+    <style>
+        :root {
+            --accent: #00d4ff;
+            --strong-accent: #ff007a;
+            --bg: #0f0f12;
+            --card: #1c1c21;
+        }
+        body { font-family: 'Cambria', serif; background: var(--bg); color: #d1d1d1; padding: 20px; line-height: 1.6; }
+        .calc-card { max-width: 800px; margin: auto; background: var(--card); padding: 30px; border-radius: 15px; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.7); }
+        
+        .header { text-align: center; margin-bottom: 30px; }
+        h2 { margin: 0; font-weight: 300; letter-spacing: 2px; transition: color 0.3s; }
+        .mode-weak h2 { color: var(--accent); }
+        .mode-strong h2 { color: var(--strong-accent); }
+
+        .toggle-container { display: flex; justify-content: center; margin-bottom: 25px; gap: 10px; }
+        .toggle-btn { 
+            padding: 10px 25px; border: 1px solid #444; background: #0a0a0c; color: #888; 
+            cursor: pointer; border-radius: 5px; transition: 0.3s; font-weight: bold;
+        }
+        .toggle-btn.active.weak { background: var(--accent); color: #000; border-color: var(--accent); }
+        .toggle-btn.active.strong { background: var(--strong-accent); color: #fff; border-color: var(--strong-accent); }
+
+        .input-row { display: flex; gap: 15px; margin-bottom: 20px; }
+        .input-group { flex: 1; }
+        label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 5px; text-transform: uppercase; }
+        input { 
+            width: 100%; background: #0a0a0c; border: 1px solid #444; border-radius: 5px; 
+            padding: 12px; color: #fff; font-family: 'Courier New', monospace; font-size: 1.1rem; box-sizing: border-box; 
+        }
+
+        #compute-btn { 
+            width: 100%; padding: 15px; border: none; border-radius: 5px; color: white; 
+            font-weight: bold; cursor: pointer; font-size: 1.1rem; transition: 0.3s;
+        }
+        .mode-weak #compute-btn { background: linear-gradient(135deg, #00d4ff, #0072ff); }
+        .mode-strong #compute-btn { background: linear-gradient(135deg, #ff007a, #8000ff); }
+
+        #display { 
+            margin-top: 30px; padding: 30px; background: #050507; border-radius: 10px; 
+            border: 1px dashed #333; min-height: 120px; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; text-align: center;
+        }
+        .math-render { font-size: 1.6rem; color: #fff; margin-bottom: 10px; }
+        .description { font-size: 0.85rem; color: #666; font-style: italic; }
+        .op { color: #888; margin: 0 8px; }
+        sub, sup { color: var(--accent); }
+        .mode-strong sub, .mode-strong sup { color: var(--strong-accent); }
+    </style>
+</head>
+<body class="mode-weak">
+
+<div class="calc-card" id="main-container">
+    <div class="header">
+        <h2 id="title">WEAK BINARY SRFSS</h2>
+    </div>
+
+    <div class="toggle-container">
+        <button class="toggle-btn active weak" onclick="setMode('weak')">WEAK MODE</button>
+        <button class="toggle-btn strong" onclick="setMode('strong')">STRONG MODE</button>
+    </div>
+    
+    <div class="input-row">
+        <div class="input-group">
+            <label>Sequence</label>
+            <input type="text" id="seq" value="1, 0" placeholder="e.g. 1, 0, 1">
+        </div>
+        <div style="width: 100px;">
+            <label>Variable (n)</label>
+            <input type="text" id="nval" value="1">
+        </div>
+    </div>
+
+    <button id="compute-btn" onclick="calculate()">PROCESS SEQUENCE</button>
+
+    <div id="display">
+        <div id="output" class="math-render">Waiting for input...</div>
+        <div id="desc" class="description">Select mode and enter values.</div>
+    </div>
+</div>
+
+<script>
+    let currentMode = 'weak';
+
+    function setMode(mode) {
+        currentMode = mode;
+        const container = document.body;
+        const btns = document.querySelectorAll('.toggle-btn');
+        const title = document.getElementById('title');
+
+        btns.forEach(b => b.classList.remove('active'));
+        if (mode === 'weak') {
+            container.className = 'mode-weak';
+            btns[0].classList.add('active');
+            title.innerText = 'WEAK BINARY SRFSS';
+        } else {
+            container.className = 'mode-strong';
+            btns[1].classList.add('active');
+            title.innerText = 'STRONG BINARY SRFSS';
+        }
+    }
+
+    function getOrdinal(val, isStrong) {
+        if (val === "inf" || val === "∞") return "Ω";
+        let v = parseInt(val);
+        if (isNaN(v)) return val;
+        if (v === 0) return "ω";
+        if (v === 1) return "ε₀";
+        if (v === 2) return "ζ₀";
+        if (v === 3) return "η₀";
+        return `φ<sub>${v}</sub>(0)`;
+    }
+
+    function calculate() {
+        const seqRaw = document.getElementById('seq').value;
+        const n = document.getElementById('nval').value;
+        const output = document.getElementById('output');
+        const desc = document.getElementById('desc');
+        
+        let arr = seqRaw.split(',').map(s => s.trim()).filter(s => s !== "");
+        if (arr.length === 0) return;
+
+        let res = "";
+        let explanation = "";
+
+        if (currentMode === 'weak') {
+            // WEAK LOGIC
+            if (arr.length === 1) {
+                let a = getOrdinal(arr[0], false);
+                res = `f<sub>${a}</sub>(${parseInt(n) + 1})`;
+                explanation = "Single element maps to Fast Growing Hierarchy level.";
+            } else {
+                let base = getOrdinal(arr[0], false);
+                let height = getOrdinal(arr[1], false);
+                let tower = `${base}<sup>${base}<sup>...</sup></sup> <small>(ht: ${height})</small>`;
+                
+                for (let i = 2; i < arr.length; i++) {
+                    let h = getOrdinal(arr[i], false);
+                    tower = `(${tower})<sup>(${tower})<sup>...</sup></sup> <small>(ht: ${h})</small>`;
+                }
+                let nTerm = (n === "0") ? "ω" : (n === "1" ? "ε₀" : n);
+                res = `${tower} <span class="op">+</span> ${nTerm}`;
+                explanation = "Expansion via power towers and standard addition.";
+            }
+        } else {
+            // STRONG LOGIC
+            if (arr.length === 1) {
+                let a = getOrdinal(arr[0], true);
+                res = `f<sub>ψ(${a})</sub>(${parseInt(n) + 1})`;
+                explanation = "Ordinal collapsing function (OCF) applied to fundamental sequence.";
+            } else if (arr.length === 2) {
+                let a = getOrdinal(arr[0], true);
+                let b = getOrdinal(arr[1], true);
+                res = `ψ<sub>${a}</sub>(Ω<sub>${b}</sub> · ${parseInt(n) + 1})`;
+                explanation = "Collapsing the b-th uncountable universe scaled by n.";
+            } else {
+                let a = getOrdinal(arr[0], true);
+                let b = getOrdinal(arr[1], true);
+                let c = getOrdinal(arr[2], true);
+                res = `[Diagonalize]<sup>${n}</sup>( ψ<sub>${a}</sub>(Ω<sub>${b}</sub><sup>${c}</sup>) )`;
+                explanation = "Self-recursive diagonalization using n-nested applications.";
+            }
+        }
+
+        output.innerHTML = res;
+        desc.innerHTML = explanation;
+    }
+</script>
+
+</body>
+</html>
